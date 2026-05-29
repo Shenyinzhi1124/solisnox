@@ -262,7 +262,7 @@
         .faction-option.selected-moon { background: #88aaff22; border-color: #88aaff; color: #bbddff; }
         .faction-option.selected-equal { background: #44aa8822; border-color: #66ddbb; color: #aaffdd; }
         .sync-btn { background: linear-gradient(95deg, #ff3366, #aa22aa); border: none; padding: 0.7rem; border-radius: 60px; font-weight: bold; font-size: 0.9rem; color: white; width: 100%; margin-top: 1.5rem; cursor: pointer; }
-        /* 管理层模态框 */
+        /* 管理层模态框 - 带详情展开 */
         .admin-modal, .query-result-modal {
             display: none;
             position: fixed;
@@ -295,6 +295,27 @@
             border-radius: 20px;
             border-left: 3px solid #ff6699;
         }
+        .record-summary {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .record-summary strong { color: #ffcc88; }
+        .record-summary i { transition: transform 0.2s; }
+        .record-detail {
+            display: none;
+            margin-top: 0.8rem;
+            padding-top: 0.8rem;
+            border-top: 1px dashed #ff6699;
+            font-size: 0.75rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 0.6rem;
+        }
+        .record-detail p { margin: 0.3rem 0; word-break: break-word; }
         .record-actions {
             margin-top: 0.6rem;
             display: flex;
@@ -480,7 +501,7 @@
         function updateRecordStatus(index, newStatus, reason) { let chars = getAllCharacters(); if(chars[index]) { chars[index].status = newStatus; if(newStatus === 'fail') chars[index].failReason = reason; else chars[index].failReason = ''; saveAllCharacters(chars); renderAdminRecords(); } }
         function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m=> m==='&'?'&amp;': m==='<'?'&lt;': '&gt;'); }
         
-        // 管理层渲染
+        // 管理层渲染：带折叠详情
         function renderAdminRecords() {
             const all = getAllCharacters();
             const container = document.getElementById('adminRecordsList');
@@ -488,26 +509,70 @@
             let html = '';
             all.forEach((rec, idx) => {
                 let statusText = rec.status === 'pending' ? '待审核' : (rec.status === 'pass' ? '已通过' : '未通过');
+                let statusColor = rec.status==='pass' ? '#88ff88' : (rec.status==='fail' ? '#ff8888' : '#ffaa66');
                 let attrStr = rec.属性 ? `${rec.属性.main} ${rec.属性.s ? 'S' : ''}${rec.属性.m ? 'M' : ''}` : '无';
-                html += `<div class="character-record">
-                            <strong>📛 ${escapeHtml(rec.姓名)}</strong> | 代号：${escapeHtml(rec.代号)} | 阵营：${escapeHtml(rec.阵营)}<br>
-                            年龄: ${rec.年龄} | 身份: ${escapeHtml(rec.身份)} | 属性: ${attrStr}<br>
-                            状态: <span style="color:${rec.status==='pass'?'#88ff88':(rec.status==='fail'?'#ff8888':'#ffaa66')}">${statusText}</span>
-                            ${rec.status === 'fail' ? `<div style="color:#ffaa88;">❌ 原因: ${escapeHtml(rec.failReason)}</div>` : ''}
-                            <div class="record-actions">
-                                <button class="pass-btn" data-idx="${idx}">✅ P (通过)</button>
-                                <button class="fail-btn" data-idx="${idx}">❌ UP (不通过)</button>
-                                <button class="del-btn" data-idx="${idx}">🗑 删除</button>
-                            </div>
-                        </div>`;
+                // 构建详情HTML
+                let detailHtml = `
+                    <div class="record-detail" id="detail-${idx}" style="display:none;">
+                        <p><strong>📝 完整资料</strong></p>
+                        <p><strong>姓名：</strong> ${escapeHtml(rec.姓名)}</p>
+                        <p><strong>年龄：</strong> ${rec.年龄}</p>
+                        <p><strong>身高体重：</strong> ${escapeHtml(rec.身高体重)}</p>
+                        <p><strong>阵营：</strong> ${escapeHtml(rec.阵营)}</p>
+                        <p><strong>身份：</strong> ${escapeHtml(rec.身份)}</p>
+                        <p><strong>代号：</strong> ${escapeHtml(rec.代号)}</p>
+                        <p><strong>属性：</strong> ${attrStr}</p>
+                        <p><strong>性格：</strong> ${escapeHtml(rec.性格)}</p>
+                        <p><strong>外貌：</strong> ${escapeHtml(rec.外貌)}</p>
+                        <p><strong>衣着：</strong> ${escapeHtml(rec.衣着)}</p>
+                        <p><strong>背景：</strong> ${escapeHtml(rec.背景)}</p>
+                        <p><strong>喜：</strong> ${escapeHtml(rec.喜)}</p>
+                        <p><strong>恶：</strong> ${escapeHtml(rec.恶)}</p>
+                        <p><strong>备注：</strong> ${escapeHtml(rec.备注)}</p>
+                        <p><strong>提交时间：</strong> ${rec.timestamp || '未知'}</p>
+                    </div>
+                `;
+                html += `
+                    <div class="character-record">
+                        <div class="record-summary" data-idx="${idx}">
+                            <span><strong>📛 ${escapeHtml(rec.姓名)}</strong> | 代号：${escapeHtml(rec.代号)} | 阵营：${escapeHtml(rec.阵营)} | 状态: <span style="color:${statusColor}">${statusText}</span></span>
+                            <i class="fas fa-chevron-down" style="color:#ff99bb;"></i>
+                        </div>
+                        ${detailHtml}
+                        <div class="record-actions">
+                            <button class="pass-btn" data-idx="${idx}">✅ P (通过)</button>
+                            <button class="fail-btn" data-idx="${idx}">❌ UP (不通过)</button>
+                            <button class="del-btn" data-idx="${idx}">🗑 删除</button>
+                        </div>
+                    </div>
+                `;
             });
             container.innerHTML = html;
-            document.querySelectorAll('.pass-btn').forEach(btn => btn.addEventListener('click', (e) => { const idx = btn.getAttribute('data-idx'); updateRecordStatus(parseInt(idx), 'pass', ''); }));
-            document.querySelectorAll('.fail-btn').forEach(btn => btn.addEventListener('click', (e) => { const idx = btn.getAttribute('data-idx'); const reason = prompt('请输入不通过的原因（UP原因）:'); if(reason && reason.trim()) updateRecordStatus(parseInt(idx), 'fail', reason.trim()); else if(reason !== null) alert('必须填写原因'); }));
-            document.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', (e) => { const idx = btn.getAttribute('data-idx'); if(confirm('确定要永久删除这条记录吗？')) deleteCharacter(parseInt(idx)); }));
+            // 绑定折叠事件
+            document.querySelectorAll('.record-summary').forEach(summary => {
+                summary.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = summary.getAttribute('data-idx');
+                    const detailDiv = document.getElementById(`detail-${idx}`);
+                    const icon = summary.querySelector('i');
+                    if (detailDiv.style.display === 'none') {
+                        detailDiv.style.display = 'block';
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    } else {
+                        detailDiv.style.display = 'none';
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                });
+            });
+            // 绑定操作按钮
+            document.querySelectorAll('.pass-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); updateRecordStatus(parseInt(idx), 'pass', ''); }));
+            document.querySelectorAll('.fail-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); const reason = prompt('请输入不通过的原因（UP原因）:'); if(reason && reason.trim()) updateRecordStatus(parseInt(idx), 'fail', reason.trim()); else if(reason !== null) alert('必须填写原因'); }));
+            document.querySelectorAll('.del-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const idx = btn.getAttribute('data-idx'); if(confirm('确定要永久删除这条记录吗？')) deleteCharacter(parseInt(idx)); }));
         }
         
-        // 用户查询审核结果（通过后显示群号和加群链接）
+        // 用户查询审核结果
         function showQueryModal() {
             const codename = prompt("请输入您的户籍代号（提交时填写的代号）:");
             if(!codename) return;
